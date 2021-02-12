@@ -1,0 +1,7 @@
+name: GraysPets
+version: 0.1.0
+main: io.github.gabehowe.grayspets.GraysPets
+api-version: 1.16
+depend: [ ProtocolLib ]
+authors: [ GabrielHowe ]
+description: A pets plugin for gray
