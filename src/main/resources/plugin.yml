@@ -5,3 +5,7 @@ api-version: 1.16
 depend: [ ProtocolLib ]
 authors: [ GabrielHowe ]
 description: A pets plugin for gray
+commands:
+  petmeowo:
+    usage: /<command>
+    description: null
