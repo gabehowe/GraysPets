@@ -1,0 +1,4 @@
+# the distance in blocks that pets can go before getting teleported
+pet-tprange: 32.0
+# the distance in blocks that pets can go before coming back
+pet-range: 10.0
