@@ -7,4 +7,6 @@ description: A pets plugin for gray
 commands:
   pet:
     usage: /<command> <petType|hide>
-    description: null
+    description: ''
+    permission: grayspets.pet
+    permission-message: §cYou do not have permission to use that command

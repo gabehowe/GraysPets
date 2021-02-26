@@ -147,7 +147,7 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         ) {
             return
         }
-        if (!pet.persistentDataContainer.has(NamespacedKey(graysPets, "pet-owner"), PersistentDataType.STRING)) {
+        if (!pet.persistentDataContainer.has(graysPets.petOwnerKey, PersistentDataType.STRING)) {
             return
         }
         val owner = Bukkit.getPlayer(
@@ -159,7 +159,7 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
             )
         )!!
         val pathfinder = pet.pathfinder
-        pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-pathfind"), PersistentDataType.INTEGER, 1)
+        pet.persistentDataContainer.set(graysPets.petPathfindKey, PersistentDataType.INTEGER, 1)
         if (pet.world != owner.world) {
             val loc = owner.location.clone()
             loc.x = owner.location.x + Math.random() * (4 - -4 + 1) + -4
@@ -232,7 +232,7 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
             return
         }
         val owner = event.entity
-        if (!owner.persistentDataContainer.has(NamespacedKey(graysPets, "active-pet"), PersistentDataType.STRING)) {
+        if (!owner.persistentDataContainer.has(graysPets.activePetKey, PersistentDataType.STRING)) {
             return
         }
         if (Bukkit.getEntity(
