@@ -1,26 +1,29 @@
 package io.github.gabehowe.grayspets
 
+import net.minecraft.server.v1_16_R3.EntityLiving
+import net.minecraft.server.v1_16_R3.PacketPlayOutEntityDestroy
+import net.minecraft.server.v1_16_R3.PacketPlayOutSpawnEntityLiving
+import org.bukkit.*
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabExecutor
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftEntity
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftLivingEntity
+import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer
 import org.bukkit.entity.*
+import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
-import org.bukkit.*
-import org.bukkit.attribute.Attribute
-
-import org.bukkit.entity.Player
 import java.util.*
 
 
 class PetsCommand(private val graysPets: GraysPets) : TabExecutor {
-    override fun onTabComplete(
-        sender: CommandSender,
-        command: Command,
-        alias: String,
-        args: Array<out String>
-    ): MutableList<String> {
+
+    override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): MutableList<String> {
         if (args.size == 1) {
-            return graysPets.acceptablePetsList
+            val list = PetFactory.PetType.values().map { it.toString().toLowerCase() }.toMutableList()
+            list.add("wand")
+            list.add("hide")
+            return list
         }
         return mutableListOf()
     }
@@ -30,158 +33,77 @@ class PetsCommand(private val graysPets: GraysPets) : TabExecutor {
             sender.sendMessage("§cOnly players can use that command")
             return true
         }
-        if (args.isEmpty()) {
+        if (args.size != 1) {
             return false
         }
-        if (sender.persistentDataContainer.has(NamespacedKey(graysPets, "active-pet"), PersistentDataType.STRING)) {
+        if (args[0].toLowerCase() == "wand") {
+            if (!sender.inventory.containsAtLeast(ItemStack(Material.STICK), 1)) {
+                sender.sendMessage("§cYou need at least one stick to complete this action")
+                return true
+            }
+            val wand = ItemStack(Material.STICK)
+            val wandMeta = wand.itemMeta
+            wandMeta.persistentDataContainer.set(graysPets.stickKey, PersistentDataType.INTEGER, 1)
+            wandMeta.setDisplayName("§6Ultimate Stick")
+            for (i in sender.inventory.contents) {
+                i ?: continue
+                if (i.type != Material.STICK) {
+                    continue
+                }
+                i.amount -= 1
+                break
+            }
+            wand.itemMeta = wandMeta
+            sender.inventory.addItem(wand)
+            return true
+        }
+        if (!PetFactory.PetType.values().map { it.toString() }.contains(args[0].toUpperCase()) && args[0].toLowerCase() != "hide") {
+            sender.sendMessage("§cInvalid pet type!")
+            return true
+        }
+        if (sender.persistentDataContainer.has(graysPets.activePetKey, PersistentDataType.STRING)) {
+            if(args[0].toLowerCase() == "hide") {
+                if (graysPets.petMap[sender.uniqueId] == null) {
+                    sender.sendMessage("§cYou need an active pet to do that!")
+                    return true
+                }
+                val pet = graysPets.petMap[sender.uniqueId]!!
+                if (pet.isHidden){
+                    (pet.entity as LivingEntity).setAI(true)
+                    (pet.entity as LivingEntity).isInvisible = false
+                pet.isHidden = false
+                }
+                else if (!pet.isHidden) {
+                    (pet.entity as LivingEntity).setAI(false)
+                    (pet.entity as LivingEntity).isInvisible = true
+                    pet.entity.teleport(Location(sender.world,sender.location.x, 10000.0, sender.location.z))
+                    pet.isHidden = true
+                }
+                return true
+            }
             if (Bukkit.getEntity(
                     UUID.fromString(
-                        sender.persistentDataContainer.get(
-                            NamespacedKey(
-                                graysPets,
-                                "active-pet"
-                            ), PersistentDataType.STRING
-                        )
+                        sender.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING)
                     )
-                ) == null
-            ) {
-                sender.persistentDataContainer.remove(NamespacedKey(graysPets, "active-pet"))
+                ) == null) {
+                sender.persistentDataContainer.remove(graysPets.activePetKey)
             } else {
                 Bukkit.getEntity(
                     UUID.fromString(
-                        sender.persistentDataContainer.get(
-                            NamespacedKey(
-                                graysPets,
-                                "active-pet"
-                            ), PersistentDataType.STRING
-                        )
+                        sender.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING)
                     )
                 )!!.remove()
             }
         }
-        if (!graysPets.acceptablePetsList.contains(args[0])) {
-            sender.sendMessage("§cInvalid pet type!")
-            return true
-        }
-        val loc = sender.location
-        var isBaby = false
-        var isHoppy = false
-        var isPogCat = false
-        var isNick = false
-        var isBPanda = false
-        var isChelsea = false
-        var isKitsune = false
-        var isGabeBear = false
         var petType = args[0]
-        loc.x = sender.location.x + Math.random() * (2 - -2 + 1) + -2
-        loc.z = sender.location.z + Math.random() * (2 - -2 + 1) + -2
-        if (petType.contains("baby_", ignoreCase = true)) {
-            petType = petType.removePrefix("baby_")
-            isBaby = true
-        }
-        petType = petType.toLowerCase()
-        if (petType == "bear") {
-            petType = "POLAR_BEAR"
-        }
-        if (petType == "pog_cat") {
-            petType = "OCELOT"
-            isPogCat = true
-        }
-        if (petType == "katie_nick") {
-            petType = "FOX"
-            isNick = true
-        }
-        if (petType == "brown_panda") {
-            petType = "PANDA"
-            isBPanda = true
-        }
-        if (petType == "thomas_chelsea") {
-            petType = "OCELOT"
-            isChelsea = true
-        }
-        if (petType == "carissa_hoppy") {
-
-            petType = "RABBIT"
-            isHoppy = true
-        }
-        if (petType == "gray_kitsune") {
-            petType = "FOX"
-            isKitsune = true
-        }
-        if (petType == "gabriel_polemistis") {
-            petType = "FOX"
-            isGabeBear = true
-        }
         petType = petType.toUpperCase()
-        val pet = sender.world.spawnEntity(
-            loc, EntityType.valueOf(
-                petType
-            )
-        )
-        pet as LivingEntity
-        if (pet.type == EntityType.TURTLE && isBaby) {
-            (pet as Turtle).getAttribute(Attribute.GENERIC_MOVEMENT_SPEED)?.baseValue = 0.5
+         try {
+            PetFactory.makePet(PetFactory.PetType.valueOf(petType), graysPets, sender)
+        } catch (e: IllegalArgumentException) {
+            Bukkit.broadcastMessage("frick you son of a bork")
         }
-        if (isBaby) {
-            (pet as Ageable).setBaby()
-            (pet as Breedable).ageLock = true
-        }
-        if (pet.type == EntityType.FOX) {
-            (pet as Fox).firstTrustedPlayer = sender
-        }
-        if (isHoppy) {
-            (pet as Rabbit).rabbitType = Rabbit.Type.BLACK_AND_WHITE
-            pet.customName = "§dHoppy" // flower trail
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "flower-cooldown"), PersistentDataType.INTEGER, 0)
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-type"), PersistentDataType.STRING, "hoppy")
-        }
-        if (isPogCat) {
-            (pet as Ocelot).customName = "pog cat"
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-type"), PersistentDataType.STRING, "bruh-cat")
-        }
-        if (isNick) {
-            (pet as Fox).customName = "§cNick"
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-type"), PersistentDataType.STRING, "nick")
-        }
-        if (isBPanda) {
-            (pet as Panda).mainGene = Panda.Gene.BROWN
-            pet.hiddenGene = Panda.Gene.BROWN
-        }
-        if (isChelsea) {
-            (pet as Ocelot).customName = "§bChelsea" // lightning cat
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-type"), PersistentDataType.STRING, "chelsea")
-        }
-        if (isKitsune) {
-            (pet as Fox).customName = "§6Kitsune" // giant zombie
-            pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-type"), PersistentDataType.STRING, "kitsune")
-        }
-        if (isGabeBear) {
-            (pet as Fox).customName = "§2πολεμ§aιστής"
-            pet.isGlowing = true
-            pet.foxType = Fox.Type.SNOW
-            pet.persistentDataContainer.set(
-                NamespacedKey(graysPets, "pet-type"),
-                PersistentDataType.STRING,
-                "gabe-bear"
-            )
-        }
-        sender.persistentDataContainer.set(
-            NamespacedKey(graysPets, "active-pet"),
-            PersistentDataType.STRING,
-            pet.uniqueId.toString()
-        )
-        pet.isInvulnerable = true
-        pet.getAttribute(Attribute.GENERIC_MAX_HEALTH)?.baseValue = 2048.0
-        pet.health = 2048.0
-        pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-pathfind"), PersistentDataType.INTEGER, 0)
-        pet.persistentDataContainer.set(NamespacedKey(graysPets, "pet-cooldown"), PersistentDataType.INTEGER, 0)
-        graysPets.petMap[sender.uniqueId] = pet
-        pet.persistentDataContainer.set(NamespacedKey(graysPets, "is-pet"), PersistentDataType.INTEGER, 1)
-        pet.persistentDataContainer.set(
-            NamespacedKey(graysPets, "pet-owner"),
-            PersistentDataType.STRING,
-            sender.uniqueId.toString()
-        )
+
+
         return true
     }
 }
