@@ -9,7 +9,7 @@ import org.bukkit.entity.Panda
 import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 
-class PandaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets) {
+class PandaPet(entity: Entity, graysPets: GraysPets, isHidden : Boolean) : BasePet(entity, graysPets,isHidden) {
     companion object {
     fun create(gene: Panda.Gene, petType: PetFactory.PetType, graysPets: GraysPets, player: Player, isBaby: Boolean): Entity {
         val entity = createEntity(graysPets, EntityType.PANDA, player, isBaby)
@@ -17,6 +17,7 @@ class PandaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets
         entity.hiddenGene = gene
         entity.mainGene = gene
         entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+        player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
         return entity
     }
 }

@@ -10,6 +10,7 @@ import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.craftbukkit.v1_16_R3.CraftWorld
 import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer
+import org.bukkit.craftbukkit.v1_16_R3.scoreboard.CraftScoreboard
 import org.bukkit.craftbukkit.v1_16_R3.util.CraftVector
 import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
@@ -17,12 +18,14 @@ import org.bukkit.entity.Fox
 import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
+import java.util.ArrayList
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
 
-class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets), VanityUltimate {
+class PolemistisPet(entity: Entity, graysPets: GraysPets, isHidden: Boolean) : BasePet(entity, graysPets, isHidden),
+    VanityUltimate {
 
 
     override fun cleanup() {
@@ -41,6 +44,42 @@ class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, gray
             ent.firstTrustedPlayer = player
             ent.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             ent.persistentDataContainer.set(graysPets.petCooldownKey, PersistentDataType.INTEGER, 0)
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            var num = 0
+            val team = ScoreboardTeam((Bukkit.getScoreboardManager().newScoreboard as CraftScoreboard).handle, "polemistis")
+            val playerToAdd = ArrayList<String>()
+            playerToAdd.add(ent.uniqueId.toString())
+            for (i in Bukkit.getOnlinePlayers()) {
+                (i as CraftPlayer).handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team, 0))
+                i.handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team, playerToAdd, 3))
+            }
+            val colors = mutableListOf<EnumChatFormat>()
+            colors.add(EnumChatFormat.RED)
+            colors.add(EnumChatFormat.GOLD)
+            colors.add(EnumChatFormat.YELLOW)
+            colors.add(EnumChatFormat.GREEN)
+            colors.add(EnumChatFormat.DARK_AQUA)
+            colors.add(EnumChatFormat.DARK_PURPLE)
+            colors.add(EnumChatFormat.LIGHT_PURPLE)
+            val rAiNbOw = Bukkit.getScheduler().scheduleSyncRepeatingTask(graysPets, {
+                val team1 = ScoreboardTeam((Bukkit.getScoreboardManager().newScoreboard as CraftScoreboard).handle, "polemistis")
+                team.color = colors[num]
+                team1.color = colors[num]
+                num++
+                if (num > 6) {
+                    num = 0
+                }
+                for (i in Bukkit.getOnlinePlayers()) {
+                    val entToAdd = ArrayList<String>()
+                    entToAdd.add(ent.uniqueId.toString())
+                    team1.color = colors[num]
+                    team.color = colors[num]
+                    (i as CraftPlayer).handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team, 0))
+                    i.handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team1, 0))
+                    i.handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team, playerToAdd, 3))
+                    i.handle.playerConnection.sendPacket(PacketPlayOutScoreboardTeam(team, 2))
+                }
+            }, 1L, 5L)
             return ent
         }
     }
@@ -55,8 +94,9 @@ class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, gray
             val angle: Double = 2 * Math.PI * i / particles
             val x: Double = cos(angle) * radius
             val y: Double = sin(angle) * radius
-            var v: Vector? = rotateAroundAxisX(Vector(x, y, 0.0), Location(null, 0.0, 0.0, 0.0, 0.0f, 90.0f).pitch.toDouble())
-            v = rotateAroundAxisY(v!!, Location(null, 0.0, 0.0, 0.0, 0.0f, 90.0f).getYaw().toDouble());
+            var v: Vector? =
+                rotateAroundAxisX(Vector(x, y, 0.0), Location(null, 0.0, 0.0, 0.0, 0.0f, 90.0f).pitch.toDouble())
+            v = rotateAroundAxisY(v!!, Location(null, 0.0, 0.0, 0.0, 0.0f, 90.0f).yaw.toDouble())
             val temp = mid.clone().add(v) //spawn particles at location temp using any method you like
             val packetEntity = EntityFox(EntityTypes.FOX, (entity.world as CraftWorld).handle)
             val yaw = Math.toDegrees(
@@ -82,7 +122,8 @@ class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, gray
             packetEntityList.add(packetEntity)
             val packetSpawn = PacketPlayOutSpawnEntityLiving(packetEntity)
             val packet = PacketPlayOutEntityMetadata(packetEntity.id, packetEntity.dataWatcher, false)
-            val entityRotation = PacketPlayOutEntityHeadRotation(packetEntity, (((yaw) * 256.0f / 360.0f).toInt()).toByte())
+            val entityRotation =
+                PacketPlayOutEntityHeadRotation(packetEntity, (((yaw) * 256.0f / 360.0f).toInt()).toByte())
             for (e in Bukkit.getOnlinePlayers()) {
                 (e as CraftPlayer).handle.playerConnection.sendPacket(packetSpawn)
                 e.handle.playerConnection.sendPacket(packet)
@@ -91,7 +132,7 @@ class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, gray
 
 
         }
-        var posMap = mutableMapOf<EntityFox, Vector>()
+        val posMap = mutableMapOf<EntityFox, Vector>()
         for (i in packetEntityList) {
             posMap[i] = CraftVector.toBukkit(i.positionVector)
         }
@@ -138,7 +179,17 @@ class PolemistisPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, gray
             }, 1L, 2L
         )
         val cooldownResetTask = Bukkit.getScheduler()
-            .runTaskLater(graysPets, Runnable { entity.persistentDataContainer.set(graysPets.petCooldownKey, PersistentDataType.INTEGER, 0) }, 100L)
+            .runTaskLater(
+                graysPets,
+                Runnable {
+                    entity.persistentDataContainer.set(
+                        graysPets.petCooldownKey,
+                        PersistentDataType.INTEGER,
+                        0
+                    )
+                },
+                100L
+            )
         val cancelTask = Bukkit.getScheduler().scheduleSyncDelayedTask(graysPets, {
             Bukkit.getScheduler().cancelTask(task)
             for (i in packetEntityList) {

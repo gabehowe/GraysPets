@@ -17,6 +17,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.entity.EntityPortalEnterEvent
 import org.bukkit.event.entity.EntityTargetEvent
 import org.bukkit.event.entity.EntityTeleportEvent
@@ -25,9 +26,6 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
-import org.yaml.snakeyaml.DumperOptions
-import org.yaml.snakeyaml.Yaml
-import java.io.FileWriter
 import java.util.*
 
 
@@ -35,47 +33,84 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
 
     @EventHandler
     fun onJoinEvent(event: PlayerJoinEvent) {
+        event.player.persistentDataContainer.set(NamespacedKey(graysPets,"jim"), PersistentDataType.INTEGER, 1)
         if (!event.player.persistentDataContainer.has(
                 graysPets.activePetKey, PersistentDataType.STRING
-            )) {
+            )
+        ) {
             return
         }
-        if( graysPets.petMap[event.player.uniqueId] == null) {
+        if (graysPets.petMap[event.player.uniqueId] == null) {
             return
         }
-        if (Bukkit.getEntity(UUID.fromString(event.player.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING))) == null) {
-            PetFactory.makePet(PetFactory.PetType.valueOf(graysPets.petMap[event.player.uniqueId]!!.entity.persistentDataContainer.get(graysPets.petTypeKey, PersistentDataType.STRING)!!),graysPets,event.player)
+        if (Bukkit.getEntity(
+                UUID.fromString(
+                    event.player.persistentDataContainer.get(
+                        graysPets.activePetKey,
+                        PersistentDataType.STRING
+                    )
+                )
+            ) == null
+        ) {
+            PetFactory.makePet(
+                PetFactory.PetType.valueOf(
+                    graysPets.petMap[event.player.uniqueId]!!.entity.persistentDataContainer.get(
+                        graysPets.petTypeKey,
+                        PersistentDataType.STRING
+                    )!!
+                ), graysPets, event.player
+            )
             return
         }
         val pet = graysPets.petMap[event.player.uniqueId] ?: return
-        pet.entity.teleport(event.player.location)
         if (!pet.isHidden) {
+            pet.entity.teleport(event.player.location)
             (pet.entity as LivingEntity).setAI(true)
             (pet.entity as LivingEntity).isInvisible = false
+            val ent = Bukkit.getEntity(
+                UUID.fromString(
+                    event.player.persistentDataContainer.get(
+                        graysPets.activePetKey,
+                        PersistentDataType.STRING
+                    )
+                )
+            )
+                ?: return
+            val isHidden: Boolean =
+                ent.persistentDataContainer.get(graysPets.hiddenKey, PersistentDataType.INTEGER) == 1
+            PetFactory.loadPet(
+                PetFactory.PetType.valueOf(ent.persistentDataContainer[graysPets.petTypeKey, PersistentDataType.STRING]!!),
+                ent,
+                graysPets,
+                isHidden
+            )
         }
-        val ent = Bukkit.getEntity(UUID.fromString(event.player.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING))) ?: return
-        PetFactory.loadPet(PetFactory.PetType.valueOf(ent.persistentDataContainer[graysPets.petTypeKey, PersistentDataType.STRING]!!), ent, graysPets)
     }
 
     @EventHandler
     fun onMoveEvent(event: EntityMoveEvent) {
         if (event.entityType == EntityType.PLAYER) {
-            val owner = event.entity
+            val owner = event.entity as Player
             if (!owner.persistentDataContainer.has(graysPets.activePetKey, PersistentDataType.STRING)) {
                 return
             }
-            if (Bukkit.getEntity(
-                    UUID.fromString(
-                        owner.persistentDataContainer.get(
-                            graysPets.activePetKey, PersistentDataType.STRING
-                        )
-                    )
-                ) == null) {
+            if (!owner.persistentDataContainer.has(graysPets.petTypeKey, PersistentDataType.STRING)) {
                 return
             }
-            val petHandler = graysPets.petMap[event.entity.uniqueId]!!
+            if (Bukkit.getEntity(UUID.fromString(owner.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING))) == null) {
+                PetFactory.makePet(PetFactory.PetType.valueOf(owner.persistentDataContainer.get(graysPets.petTypeKey, PersistentDataType.STRING)!!),graysPets,owner)
+                return
+            }
+            if (graysPets.petMap[owner.uniqueId] == null) {
+                PetFactory.makePet(PetFactory.PetType.valueOf(owner.persistentDataContainer.get(graysPets.petTypeKey, PersistentDataType.STRING)!!), graysPets, owner)
+            }
+            val petHandler = graysPets.petMap[owner.uniqueId]!!
             if (petHandler.isHidden) {
-                petHandler.entity.teleport(Location(owner.world,owner.location.x,owner.location.y + 10000,owner.location.z))
+                petHandler.entity.teleport(Location(owner.world,owner.location.x,
+                        owner.location.y + 10000,
+                        owner.location.z
+                    )
+                )
                 return
             }
             val pet = petHandler.entity as Mob
@@ -83,7 +118,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
                     graysPets.petPathfindKey, PersistentDataType.INTEGER
                 ) || pet.persistentDataContainer.get(
                     graysPets.petPathfindKey, PersistentDataType.INTEGER
-                ) == 1) {
+                ) == 1
+            ) {
                 return
             }
             if (pet.world != owner.world) {
@@ -117,19 +153,28 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
             ) || pet.persistentDataContainer.get(
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
-            ) == 1) {
+            ) == 1
+        ) {
             return
         }
         if (!pet.persistentDataContainer.has(graysPets.petOwnerKey, PersistentDataType.STRING)) {
             return
         }
         val owner = Bukkit.getPlayer(
-            UUID.fromString(
-                pet.persistentDataContainer.get(
-                    graysPets.petOwnerKey, PersistentDataType.STRING
-                )!!
-            )
-        )!!
+            UUID.fromString(pet.persistentDataContainer.get(graysPets.petOwnerKey, PersistentDataType.STRING)!!)
+        )
+        if (owner == null) {
+            pet.setAI(false)
+            pet.teleport(Location(pet.world,pet.location.x,Math.random() * (10000 - 1000 + 1) + 1000,pet.location.z))
+            return
+
+        }
+        if (graysPets.petMap[owner.uniqueId] == null) {
+            PetFactory.loadPet(PetFactory.PetType.valueOf(owner.persistentDataContainer.get(graysPets.petTypeKey, PersistentDataType.STRING)!!),pet, graysPets, pet.persistentDataContainer.get(graysPets.hiddenKey, PersistentDataType.INTEGER) == 1)
+        }
+        if (graysPets.petMap[owner.uniqueId]!!.isHidden) {
+            return
+        }
         val pathfinder = pet.pathfinder
         pet.persistentDataContainer.set(graysPets.petPathfindKey, PersistentDataType.INTEGER, 1)
         if (pet.world != owner.world) {
@@ -161,7 +206,19 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
     fun onBearStalkFoxEvent(event: EntityTargetEvent) {
         if (!event.entity.persistentDataContainer.has(
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
-            )) {
+            )
+        ) {
+            return
+        }
+        event.isCancelled = true
+    }
+
+    @EventHandler
+    fun onFoxFreakingStealYourScaffoldingEvent(event: EntityPickupItemEvent) {
+        if (!event.entity.persistentDataContainer.has(
+                graysPets.petPathfindKey, PersistentDataType.INTEGER
+            )
+        ) {
             return
         }
         event.isCancelled = true
@@ -172,16 +229,27 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         if (!event.player.persistentDataContainer.has(graysPets.activePetKey, PersistentDataType.STRING)) {
             return
         }
-        if (Bukkit.getEntity(UUID.fromString(event.player.persistentDataContainer.get(graysPets.activePetKey, PersistentDataType.STRING))) == null) {
+        if (Bukkit.getEntity(
+                UUID.fromString(
+                    event.player.persistentDataContainer.get(
+                        graysPets.activePetKey,
+                        PersistentDataType.STRING
+                    )
+                )
+            ) == null
+        ) {
             return
         }
-        if (graysPets.petMap[event.player.uniqueId] == null){
+        if (graysPets.petMap[event.player.uniqueId] == null) {
             return
         }
         val pet = graysPets.petMap[event.player.uniqueId]!!
         pet.entity.teleport(
             Location(
-                event.player.world, event.player.location.x, Math.random() * (10000 - 1000 + 1) + 1000, event.player.location.z
+                event.player.world,
+                event.player.location.x,
+                Math.random() * (10000 - 1000 + 1) + 1000,
+                event.player.location.z
             )
         )
         (pet.entity as LivingEntity).setAI(false)
@@ -203,7 +271,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
                         graysPets.activePetKey, PersistentDataType.STRING
                     )
                 )
-            ) == null) {
+            ) == null
+        ) {
             return
         }
         val pet = Bukkit.getEntity(
@@ -215,7 +284,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         )!! as Mob
         if (!pet.persistentDataContainer.has(
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
-            )) {
+            )
+        ) {
             return
         }
         val loc = owner.location.clone()
@@ -239,10 +309,16 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         if (!event.entity.persistentDataContainer.has(graysPets.petOwnerKey, PersistentDataType.STRING)) {
             return
         }
-        val pet = graysPets.petMap[UUID.fromString(event.entity.persistentDataContainer.get(graysPets.petOwnerKey, PersistentDataType.STRING))] ?: return
+        val pet = graysPets.petMap[UUID.fromString(
+            event.entity.persistentDataContainer.get(
+                graysPets.petOwnerKey,
+                PersistentDataType.STRING
+            )
+        )] ?: return
         if (pet.entity.persistentDataContainer.get(
                 graysPets.petCooldownKey, PersistentDataType.INTEGER
-            ) == 1) {
+            ) == 1
+        ) {
             return
         }
         if (pet !is HoppyPet) {
@@ -267,12 +343,13 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         }
 
         val pet = graysPets.petMap[event.player.uniqueId] ?: return
-        if(pet.isHidden) {
+        if (pet.isHidden) {
             return
         }
         if (pet.entity.persistentDataContainer.get(
                 graysPets.petCooldownKey, PersistentDataType.INTEGER
-            ) == 1) {
+            ) == 1
+        ) {
             return
         }
         event.isCancelled = true
@@ -296,7 +373,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
                         NamespacedKey(graysPets, "active-pet"), PersistentDataType.STRING
                     )
                 )
-            ) == null) {
+            ) == null
+        ) {
             return
         }
         val pet = Bukkit.getEntity(
@@ -310,7 +388,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
             ) || pet.persistentDataContainer.get(
                 graysPets.petPathfindKey, PersistentDataType.INTEGER
-            ) == 1) {
+            ) == 1
+        ) {
             return
         }
         val loc = owner.location.clone()
@@ -335,7 +414,8 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
         }
         if (!event.entity.persistentDataContainer.has(
                 NamespacedKey(graysPets, "chelsea-uuid"), PersistentDataType.STRING
-            )) {
+            )
+        ) {
             return
         }
         val pet = Bukkit.getEntity(
@@ -348,7 +428,9 @@ class PetsEvents(private val graysPets: GraysPets) : Listener {
             )
         )!!
         pet.velocity = Vector(
-            pet.location.x - event.collidedWith.location.x, pet.location.y - event.collidedWith.location.y, pet.location.z - event.collidedWith.location.z
+            pet.location.x - event.collidedWith.location.x,
+            pet.location.y - event.collidedWith.location.y,
+            pet.location.z - event.collidedWith.location.z
         )
         val bolt = EntityLightning(EntityTypes.LIGHTNING_BOLT, (event.entity.world as CraftWorld).handle)
         val playersWhoSee = pet.location.getNearbyEntitiesByType(Player::class.java, 50.0)

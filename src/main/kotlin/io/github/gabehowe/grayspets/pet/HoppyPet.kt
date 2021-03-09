@@ -18,7 +18,7 @@ import org.bukkit.entity.Player
 import org.bukkit.entity.Rabbit
 import org.bukkit.persistence.PersistentDataType
 
-class HoppyPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets) {
+class HoppyPet(entity: Entity, graysPets: GraysPets, isHidden : Boolean) : BasePet(entity, graysPets, isHidden) {
 
 
     override fun cleanup() {
@@ -35,6 +35,7 @@ class HoppyPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets
             entity.rabbitType = Rabbit.Type.BLACK_AND_WHITE
             entity.persistentDataContainer.set(graysPets.petCooldownKey, PersistentDataType.INTEGER, 0)
             entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             return entity
         }
     }

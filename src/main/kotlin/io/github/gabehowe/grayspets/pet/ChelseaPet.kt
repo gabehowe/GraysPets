@@ -11,7 +11,8 @@ import org.bukkit.util.Vector
 import java.lang.NullPointerException
 import kotlin.math.atan2
 
-class ChelseaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets), VanityUltimate {
+class ChelseaPet(entity: Entity, graysPets: GraysPets, isHidden: Boolean) : BasePet(entity, graysPets, isHidden),
+    VanityUltimate {
 
     override fun cleanup() {
         super.cleanup()
@@ -19,8 +20,9 @@ class ChelseaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
     }
 
     override fun activateUltimate() {
-        val nearestEntityList = entity.location.getNearbyEntities(entity.location.x + 25, entity.location.y + 25, entity.location.z + 25)
-            .toMutableList()
+        val nearestEntityList =
+            entity.location.getNearbyEntities(entity.location.x + 25, entity.location.y + 25, entity.location.z + 25)
+                .toMutableList()
         val acceptableEntities = mutableListOf<LivingEntity>()
         for (i in nearestEntityList) {
             if (i.type == EntityType.PANDA) {
@@ -54,13 +56,17 @@ class ChelseaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
         loc.yaw = yaw
         entity.teleport(loc)
         entity.velocity = Vector(
-            nearestEntity.location.x - entity.location.x, nearestEntity.location.y - entity.location.y, nearestEntity.location.z - entity.location.z
+            nearestEntity.location.x - entity.location.x,
+            nearestEntity.location.y - entity.location.y,
+            nearestEntity.location.z - entity.location.z
         )
         val arrowLoc = entity.location.clone()
         arrowLoc.y += 1
         val arrow = entity.world.spawnArrow(arrowLoc, loc.direction, 1.0f, 0.0f)
         arrow.velocity = Vector(
-            nearestEntity.location.x - entity.location.x, nearestEntity.location.y - entity.location.y, nearestEntity.location.z - entity.location.z
+            nearestEntity.location.x - entity.location.x,
+            nearestEntity.location.y - entity.location.y,
+            nearestEntity.location.z - entity.location.z
         )
         arrow.damage = 0.0
         arrow.persistentDataContainer.set(
@@ -73,9 +79,8 @@ class ChelseaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
                     NamespacedKey(graysPets, "pet-cooldown"), PersistentDataType.INTEGER, 0
                 )
                 try {
-                 arrow.remove()
-                }
-                catch (e : NullPointerException) {
+                    arrow.remove()
+                } catch (e: NullPointerException) {
 
                 }
             }, 240L
@@ -92,6 +97,7 @@ class ChelseaPet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
             entity.hiddenGene = Panda.Gene.BROWN
             entity.persistentDataContainer.set(graysPets.petCooldownKey, PersistentDataType.INTEGER, 0)
             entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             return entity
         }
     }

@@ -8,12 +8,20 @@ import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 
-class ImaGetSomeSlimePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets) {
+class ImaGetSomeSlimePet(entity: Entity, graysPets: GraysPets, isHidden: Boolean) :
+    BasePet(entity, graysPets, isHidden) {
     companion object {
 
-        fun create(petType: PetFactory.PetType, entityType: EntityType, graysPets: GraysPets, player: Player, isBaby: Boolean): Entity {
+        fun create(
+            petType: PetFactory.PetType,
+            entityType: EntityType,
+            graysPets: GraysPets,
+            player: Player,
+            isBaby: Boolean
+        ): Entity {
             val entity = createEntity(graysPets, entityType, player, isBaby)
             entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             return entity
         }
     }

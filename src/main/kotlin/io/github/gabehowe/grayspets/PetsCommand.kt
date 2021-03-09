@@ -12,6 +12,7 @@ import org.bukkit.craftbukkit.v1_16_R3.entity.CraftLivingEntity
 import org.bukkit.craftbukkit.v1_16_R3.entity.CraftPlayer
 import org.bukkit.entity.*
 import org.bukkit.inventory.ItemStack
+import org.bukkit.permissions.Permission
 import org.bukkit.persistence.PersistentDataType
 import java.util.*
 
@@ -23,18 +24,48 @@ class PetsCommand(private val graysPets: GraysPets) : TabExecutor {
             val list = PetFactory.PetType.values().map { it.toString().toLowerCase() }.toMutableList()
             list.add("wand")
             list.add("hide")
+            if (sender.hasPermission("grayspets.pet.removeall")) {
+                list.add("removeall")
+            }
             return list
         }
         return mutableListOf()
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+        if (args.size != 1) {
+            return false
+        }
+        if(sender.hasPermission("grayspets.pet.removeall")) {
+            if (args[0] == "removeall") {
+                val list = graysPets.petsConfig.getStringList("pets")
+                for (i in list) {
+                    val ent = Bukkit.getEntity(UUID.fromString(i)) ?: continue
+                    ent.remove()
+                }
+                list.clear()
+                graysPets.petsConfig.set("pets", list)
+                graysPets.petsConfig.save(graysPets.petsPath)
+                for (i in Bukkit.getOnlinePlayers()) {
+                    if (!i.persistentDataContainer.has(graysPets.activePetKey, PersistentDataType.STRING)) {
+                        continue
+                    }
+                    if (graysPets.petMap[i.uniqueId] != null) {
+                        graysPets.petMap[i.uniqueId]!!.entity.remove()
+                        graysPets.petMap.remove(i.uniqueId)
+                    }
+                    i.persistentDataContainer.remove(graysPets.activePetKey)
+                    if (!i.persistentDataContainer.has(graysPets.petTypeKey, PersistentDataType.STRING)) {
+                        continue
+                    }
+                    i.persistentDataContainer.remove(graysPets.petTypeKey)
+                }
+                return true
+            }
+        }
         if (sender !is Player) {
             sender.sendMessage("§cOnly players can use that command")
             return true
-        }
-        if (args.size != 1) {
-            return false
         }
         if (args[0].toLowerCase() == "wand") {
             if (!sender.inventory.containsAtLeast(ItemStack(Material.STICK), 1)) {
@@ -71,7 +102,7 @@ class PetsCommand(private val graysPets: GraysPets) : TabExecutor {
                 if (pet.isHidden){
                     (pet.entity as LivingEntity).setAI(true)
                     (pet.entity as LivingEntity).isInvisible = false
-                pet.isHidden = false
+                    pet.isHidden = false
                 }
                 else if (!pet.isHidden) {
                     (pet.entity as LivingEntity).setAI(false)

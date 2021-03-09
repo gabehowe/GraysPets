@@ -15,7 +15,7 @@ import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 
-class KitsunePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPets), VanityUltimate {
+class KitsunePet(entity: Entity, graysPets: GraysPets, isHidden : Boolean) : BasePet(entity, graysPets, isHidden), VanityUltimate {
 
     override fun cleanup() {
         super.cleanup()
@@ -25,7 +25,6 @@ class KitsunePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
 
     override fun activateUltimate() {
         val entity = entity as Fox
-        val equipment = entity.equipment
         entity.velocity = Vector(0, 1, 0)
         if (entity.equipment != null) {
             entity.equipment?.clear()
@@ -52,7 +51,7 @@ class KitsunePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
                 i.handle.playerConnection.sendPacket(packet)
                 i.playSound(entity.location, Sound.ENTITY_ENDER_DRAGON_DEATH, 2.0f, 1.0f)
             }
-            (entity as Fox).isInvisible = true
+            entity.isInvisible = true
         }, 10L)
         Bukkit.getScheduler().runTaskLater(graysPets, Runnable {
             entity.persistentDataContainer.set(
@@ -63,8 +62,8 @@ class KitsunePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
             for (i in playersWhoSee) {
                 (i as CraftPlayer).handle.playerConnection.sendPacket(packetPlayOutEntityDestroy)
             }
-            (entity as Fox).isInvisible = false
-            (entity as Fox).setAI(true)
+            entity.isInvisible = false
+            entity.setAI(true)
         }, 220L)
         Bukkit.getScheduler().runTaskLater(
             graysPets, Runnable {
@@ -85,6 +84,7 @@ class KitsunePet(entity: Entity, graysPets: GraysPets) : BasePet(entity, graysPe
             entity.firstTrustedPlayer = player
             entity.persistentDataContainer.set(graysPets.petCooldownKey, PersistentDataType.INTEGER, 0)
             entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             return entity
         }
     }

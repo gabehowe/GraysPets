@@ -9,8 +9,8 @@ import org.bukkit.entity.Fox
 import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 
-class FoxPet(entity: Entity, graysPets: GraysPets) :
-    BasePet(entity, graysPets) {
+class FoxPet(entity: Entity, graysPets: GraysPets, isHidden : Boolean) :
+    BasePet(entity, graysPets, isHidden) {
 
 
     companion object {
@@ -20,6 +20,7 @@ class FoxPet(entity: Entity, graysPets: GraysPets) :
             entity as Fox
             entity.foxType = foxType
             entity.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
+            player.persistentDataContainer.set(graysPets.petTypeKey, PersistentDataType.STRING, "$petType")
             return entity
         }
     }
